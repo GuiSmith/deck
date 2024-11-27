@@ -1,85 +1,101 @@
-DROP DATABASE CardDecks;
+DROP DATABASE IF EXISTS CardDecks;
 
--- Create the database
+-- Criar o banco de dados
 CREATE DATABASE CardDecks;
 
--- Use the newly created database
+-- Selecionar o banco de dados recém-criado
 USE CardDecks;
 
--- Create the decks table with the 'name' column added
+-- Criar a tabela 'decks' com a coluna 'name' adicionada
 CREATE TABLE decks (
     deck_id VARCHAR(255) PRIMARY KEY,  
-    -- Corresponds to 'deck_id' in the object
+    -- Identificador único do baralho (corresponde ao 'deck_id' no objeto)
     
     name VARCHAR(255) NULL,       
-    -- Name of the deck (can be NULL)
+    -- Nome do baralho (pode ser NULL)
     
     success BOOLEAN NOT NULL,     
-    -- Indicates if deck creation was successful
+    -- Indica se a criação do baralho foi bem-sucedida (true ou false)
     
     remaining INT NOT NULL,       
-    -- Number of remaining cards in the deck
+    -- Número de cartas restantes no baralho
     
     shuffled BOOLEAN NOT NULL,    
-    -- Indicates if the deck is shuffled
+    -- Indica se o baralho está embaralhado (true ou false)
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    -- Timestamp when the record is created
+    -- Data e hora em que o registro foi criado
     
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP 
-    -- Timestamp when the record is updated
+    -- Data e hora da última atualização do registro
 );
 
--- Create the cards table with the new 'on_hand' column
+-- Criar a tabela 'cards' com a nova coluna 'on_hand'
 CREATE TABLE cards (
     id INT AUTO_INCREMENT PRIMARY KEY,   
-    -- Unique identifier for each card
+    -- Identificador único para cada carta
     
     deck_id VARCHAR(255),                
-    -- Foreign key referencing the deck
+    -- Chave estrangeira que referencia o baralho
     
     code VARCHAR(10) NOT NULL,           
-    -- Card code (e.g., "3S")
+    -- Código da carta (ex.: "3S")
     
     image VARCHAR(255),                  
-    -- Card image (PNG URL)
+    -- URL da imagem da carta (formato PNG)
     
     svg_image VARCHAR(255),              
-    -- SVG image URL
+    -- URL da imagem SVG da carta
     
     value VARCHAR(50) NOT NULL,          
-    -- Card value (e.g., "3")
+    -- Valor da carta (ex.: "3")
     
     suit VARCHAR(50) NOT NULL,           
-    -- Card suit (e.g., "SPADES")
+    -- Naipe da carta (ex.: "ESPADAS")
     
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-    -- Timestamp when the record is created
+    -- Data e hora em que o registro foi criado
     
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, 
-    -- Timestamp when the record is updated
+    -- Data e hora da última atualização do registro
     
-    on_hand BOOLEAN DEFAULT false,  -- Indicates if the card is in hand (TRUE or FALSE)
-    -- Default value is FALSE, meaning the card is not in hand by default
+    on_hand BOOLEAN NOT NULL,  
+    -- Indica se a carta está na mão (TRUE ou FALSE)
     
     CONSTRAINT fk_deck FOREIGN KEY (deck_id) REFERENCES decks(deck_id) ON DELETE CASCADE,
-    -- Reference to decks table
-    UNIQUE (deck_id,code)
+    -- Chave estrangeira que referencia a tabela 'decks', com exclusão em cascata
+    
+    UNIQUE (deck_id, code)  
+    -- Garante que o código de cada carta seja único dentro de um baralho
 );
 
+-- Criar uma VIEW para listar baralhos traduzidos para português
 DROP VIEW IF EXISTS translated_deck_view;
 
 CREATE VIEW translated_deck_view AS
 SELECT 
-    deck_id AS "ID baralho",
-    name AS "Nome",
-    success AS "Sucesso",
-    remaining AS "Cartas",
+    deck_id,
+    name,
+    CASE
+        WHEN success = 1 THEN 'Sim'
+        WHEN success = 0 THEN 'Não'
+    END AS 'success',
+    remaining,
     CASE 
         WHEN shuffled = 1 THEN 'Sim'
         WHEN shuffled = 0 THEN 'Não'
         ELSE NULL
-    END AS "Embaralhado",
-    created_at AS "Data cadastro",
-    updated_at AS "Data atualização"
+    END AS "shuffled",
+    created_at,
+    updated_at
 FROM decks;
+
+-- Atualizar a quantidade de cartas restantes nos baralhos com base nas cartas que não estão na mão
+/*
+UPDATE decks
+SET remaining = (
+    SELECT COUNT(*) 
+    FROM cards
+    WHERE cards.deck_id = decks.deck_id AND cards.on_hand = 0
+);
+*/

@@ -10,19 +10,23 @@ try {
         // Fetch a specific card by deck_id
         $sql = 'SELECT * FROM cards WHERE deck_id = :deck_id';
         $query = $dbConnection->prepare($sql);
-        $query->bindParam(':deck_id', $deck_id, PDO::PARAM_INT);
+        $query->bindParam(':deck_id', $deck_id, PDO::PARAM_STR);
         $query->execute();
-        $card = $query->fetch(PDO::FETCH_ASSOC);
+        $cards = [];
 
-        if ($card) {
+        while($card = $query->fetch(PDO::FETCH_ASSOC)){
+            $cards[] = $card;
+        }
+
+        if ($query->rowCount() > 0) {
             $response['status'] = 200;
             $response['ok'] = true;
-            $response['message'] = 'Card found.';
-            $response['data'] = $card;
+            $response['message'] = $query->rowCount().' cartas encontradas';
+            $response['data'] = $cards;
         } else {
             $response['status'] = 404;
             $response['ok'] = false;
-            $response['message'] = 'Card not found.';
+            $response['message'] = 'Nenhuma carta encontrada';
         }
     } else {
         // Fetch all cards

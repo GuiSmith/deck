@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Truco</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="style.css">
     <style>
         .deck-container, .hand-container {
             display: grid;
@@ -25,13 +26,13 @@
                 <button class="btn btn-success" onclick="novoBaralho()">Novo Baralho</button>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-dark" onclick="embaralharCartas()">Embaralhar</button>
+                <button class="btn btn-secondary" onclick="embaralharCartas()">Embaralhar</button>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-secondary" onclick="listarBaralhos()">Carregar Baralhos</button>
+                <button class="btn btn-dark" onclick="listarBaralhos()">Listar Baralhos</button>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-primary" onclick="comprarCincoCartas()">Comprar 5 Cartas</button>
+                <button class="btn btn-danger" onclick="resetarSite()">Resetar Website</button>
             </div>
         </div>
         <hr>
@@ -46,12 +47,14 @@
                 <button class="btn btn-success" onclick="salvarBaralho()">Salvar Baralho</button>
             </div>
             <div class="col-md-3">
+                <button class="btn btn-primary" onclick="comprarCincoCartas()">Comprar 5 Cartas</button>
+            </div>
+            <div class="col-md-3">
                 <button class="btn btn-danger" onclick="deletarBaralho()">Deletar Baralho</button>
             </div>
         </div>
-        <div id="handContainer" class="hand-container"></div>
         <hr>
-        
+        <div id="handContainer" class="hand-container"></div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="script.js"></script>

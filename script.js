@@ -1,29 +1,49 @@
-const apiDeckUrl = 'https://deckofcardsapi.com/api/deck';
-var deckData = {};
-var deck = [];
-var hand = [];
-var savedDB = false;
-var deckNameElement = document.getElementById('deckName');
-const deckContainer = document.getElementById('deckContainer');
-const deckTableContainer = document.getElementById('deckTableContainer');
-const deckIdContainer = document.getElementById('deckIdContainer');
+/**
+Dicionário: Deck = Baralho
+*/
 
-async function novoBaralho() {
+const apiDeckUrl = 'https://deckofcardsapi.com/api/deck'; //URL da api de cartas
+var deckData = {}; //Objeto que contém dados do deck a ser cadastrado no banco de dados
+var deck = []; //Array que contém cartas disponíveis para compra, do deck
+var hand = []; //Array que contém cartas compradas
+var savedDB = false;//Variável de controle para saber se o baralho sendo mostrado atualmente está salvo no banco de dados ou não
+//Variáveis de controle para elementos do HTML
+var deckNameElement = document.getElementById('deckName'); //Input para nome do baralho
+const deckContainer = document.getElementById('deckContainer'); //Elemento container dos baralhos
+const deckTableContainer = document.getElementById('deckTableContainer'); //Elemento container da tabela de baralhos
+const deckIdContainer = document.getElementById('deckIdContainer'); //Elemento container do ID do baralho
+const messageQueue = []; // Fila de mensagens
+let isMessageVisible = false; // Indica se uma mensagem está sendo exibida
+
+//Mensagem para quando a página toda é carregada
+document.addEventListener('DOMContentLoaded', () => {
+    showMessage('Página carregada!', true);
+});
+
+//Reseta os dados de baralho para simular o recarregamento de uma página
+function resetarSite(){
+    deckContainer.innerHTML = '';
+    deckIdContainer.innerHTML = '';
     deckNameElement.value = '';
     savedDB = false;
     deck = [];
     hand = [];
-    const response = await axios.get(`${apiDeckUrl}/new/shuffle/`);
-    deckData = response.data;
-    deckIdContainer.textContent = deckData.deck_id;
-
-    //console.log(response);
-    embaralharCartas();
-    //console.log("Novo baralho gerado!");
 }
 
+//Reseta a página e chama um novo baralho pela API
+async function novoBaralho() {
+    resetarSite();
+    const response = await axios.get(`${apiDeckUrl}/new/shuffle/`);
+    deckData = response.data;
+    showMessage('Novo baralho gerado!', true);
+    embaralharCartas();
+}
+
+//Exibe cartas do baralho
 function exibirCartasNoBaralho() {
     deckContainer.innerHTML = deckTableContainer.innerHTML = '';
+    deckIdContainer.textContent = deckData.deck_id;
+    deckNameElement.value = deckData.name == undefined ? '' : deckData.name;
     deck.forEach(carta => {
         const img = document.createElement('img');
         img.src = carta.image;
@@ -32,9 +52,10 @@ function exibirCartasNoBaralho() {
     });
 }
 
+//Compra 5 cartas do baralho
 function comprarCincoCartas() {
     if (deck.length < 5) {
-        alert('Não há cartas suficientes no baralho!');
+        showMessage('Cartas insuficientes', false);
         return;
     }
     const cartasCompradas = deck.splice(0, 5);
@@ -43,12 +64,17 @@ function comprarCincoCartas() {
         card.on_hand = true;
         return card;
     });
-    console.log(hand);
+    //console.log(deckData);
+    deckData.remaining -= 5;
+    //console.log(deckData);
+    showMessage('5 cartas compradas!', true);
+    //console.log(hand);
 
     exibirCartasNoBaralho();
     exibirCartasNaMão();
 }
 
+//Exibe cartas compradas do baralho
 function exibirCartasNaMão() {
     const handContainer = document.getElementById('handContainer');
     handContainer.innerHTML = '';
@@ -60,20 +86,21 @@ function exibirCartasNaMão() {
     });
 }
 
+//Embaralha cartas
 async function embaralharCartas() {
     const response = await axios.get(`${apiDeckUrl}/${deckData.deck_id}/shuffle/`);
     //console.log(response);
-    if (response.data.success){
+    if (response.data.success) {
         const deckResponse = await axios.get(`${apiDeckUrl}/${deckData.deck_id}/draw/?count=${deck.length > 0 ? deck.length : 52}`);
         //console.log(deckResponse);
         deck = deckResponse.data.cards;
-        console.log('Cartas embaralhadas');
+        showMessage('Cartas embaralhadas', true);
         exibirCartasNoBaralho();
     }
 }
 
-//Banco
-
+//Salva o baralho atual no banco de dados
+//Se o baralho já está carregado, apenas atualiza seus dados
 async function salvarBaralho() {
     if (!deckData.deck_id) {
         alert("Não há um baralho válido para salvar.");
@@ -90,44 +117,101 @@ async function salvarBaralho() {
 
     //console.log(deckData);
     if (savedDB) {
-        console.log('Deck atualizado: ' + await updateDB(deckData, 'deck'));
-        console.log('Cartas atualizadas: ' + await updateDB(cards, 'card'));
+        //Atualizando deck
+        if (await updateDB(deckData, 'deck')) {
+            showMessage('Baralho atualizado!',true);
+        } else {
+            showMessage('Baralho não atualizado',false);
+        }
+        //Atualizando cartas
+        if (await updateDB(cards, 'card')) {
+            showMessage('Cartas atualizadas!',true);
+        } else {
+            showMessage('Cartas não atualizadas',false);
+        }
     } else {
+        //Cadastrando deck
         savedDB = await createDB(deckData, 'deck');
-        console.log('Deck cadastrado: ' + savedDB);
-        console.log('cartas cadastradas: ' + await createDB(cards, 'card'));
+        if (savedDB) {
+            showMessage('Baralho cadastrado!', true);
+        } else {
+            showMessage('Baralho não cadastrado', false);
+        }
+        //Cadastrando cartas
+        if (await createDB(cards, 'card')) {
+            showMessage('Cartas cadastradas!', true);
+        } else {
+            showMessage('Cartas não cadastradas', false);
+        }
     }
 }
 
+//Lista os baralhos já cadastradas no banco de dados em uma tabela
 async function listarBaralhos() {
-    deckContainer.innerHTML = deckTableContainer.innerHTML = '';
     let decks = await listDB('deck');
+    //console.log(decks);
     if (decks.length > 0) {
-        createTableFromObjects(decks, 'deckTableContainer');
+        deckContainer.innerHTML = deckTableContainer.innerHTML = '';
+        createTableFromObjects(decks, 'deckTableContainer',[
+            {
+                text: 'Usar',
+                class: 'btn btn-dark',
+                callback: usarDeck
+            }
+        ]);
+        showMessage('Baralhos listados!', true);
     } else {
-        alert('Nenhum deck cadastrado');
-    }
-}
-function deletarBaralho() {
-    if (!currentDeckName) {
-        alert("Não há baralho para deletar.");
-        return;
-    }
-
-    const confirmation = confirm(`Tem certeza de que deseja deletar o baralho "${currentDeckName}"?`);
-    if (confirmation) {
-        localStorage.removeItem(currentDeckName);
-        currentDeckName = '';
-        deckId = null;
-        deck = [];
-        hand = [];
-        document.getElementById('deckName').value = '';
-        exibirCartasNoBaralho();
-        exibirCartasNaMão();
-        alert("Baralho deletado com sucesso!");
+        showMessage('Nenhum baralho encontrado!', false);
     }
 }
 
+//Busca no banco de dados os dados do deck selecionado e carrega na página
+async function usarDeck(obj){
+    let cards = await listDB('card',obj.deck_id);
+    deckData = obj;
+    //console.log("Cartas");
+    //console.log(cards);
+    deck = cards.filter(card => !card.on_hand);
+    hand = cards.filter(card => card.on_hand);
+    savedDB = true;
+    showMessage('Carregando baralho...', true);
+    exibirCartasNaMão();
+    exibirCartasNoBaralho();
+}
+
+//Deleta baralho atual
+async function deletarBaralho() {
+    if (Object.keys(deckData).length == 0) {
+        showMessage("Não há baralho para deletar", false);
+        return false;
+    }else{
+        if (savedDB) {
+            if (!confirm('Tem certeza de que deseja deletar o baralho ' + deckData.deck_id)) {
+                showMessage("Deleção abortada", true);
+                return false;
+            }else{
+                if (await deleteDB('deck',deckData.deck_id)) {
+                    showMessage('Baralho deletado',true);
+                    resetarSite();
+                }else{
+                    showMessage('Baralho não deletado', false);
+                }
+            }
+        }else{
+            showMessage("Baralho não está cadastrado!", false);
+            return false;
+        }
+    }
+}
+
+/*Aqui você verá funções padrão de CRUD
+C = CREATE = createDB
+R = READ = listDB
+U = UPDATE = updateDB
+D = DELETE = deleteDB
+*/
+
+//Cria registro no banco de dados
 async function createDB(data, type) {
     // Define allowed resource types in an array
     const allowedTypes = ['card', 'deck'];
@@ -160,6 +244,7 @@ async function createDB(data, type) {
     return result.ok;
 }
 
+//Atualiza registro no banco de dados
 async function updateDB(data, type) {
     // Validando o tipo para garantir que seja 'card' ou 'deck'
     const validTypes = ['card', 'deck'];
@@ -188,6 +273,12 @@ async function updateDB(data, type) {
     return result.ok;
 }
 
+/*
+Lista registros do banco de dados
+
+Se o tipo for DECK (baralho), não é necessário informar um deck_id
+Se o tipo for CARD (cartas), é necessário informar um deck_id, para saber de qual baralho as cartas devem ser listadas
+*/
 async function listDB(tipo, deck_id = null) {
     // Valida se o tipo fornecido é válido
     const tiposPermitidos = ['deck', 'card'];
@@ -196,7 +287,7 @@ async function listDB(tipo, deck_id = null) {
     }
 
     // Define o endpoint com base no tipo
-    const endpoint = `back/${tipo}/list.php`;
+    let endpoint = `back/${tipo}/list.php`;
 
     if (deck_id) endpoint += `?deck_id=${deck_id}`;
 
@@ -221,51 +312,46 @@ async function listDB(tipo, deck_id = null) {
     }
 }
 
-async function deleteDB(tipo, id) {
-    try {
-        // Valida se o tipo fornecido é válido
-        const tiposPermitidos = ['deck', 'hand'];
-        if (!tiposPermitidos.includes(tipo)) {
-            throw new Error("Tipo inválido. Deve ser 'deck' ou 'hand'.");
-        }
-
-        // Verifica se o ID foi fornecido
-        if (!id) {
-            throw new Error("O ID é necessário para deletar o recurso.");
-        }
-
-        // Define o endpoint com base no tipo e no ID
-        const endpoint = `/back/${tipo}/delete.php?id=${id}`;
-
-        // Envia uma requisição DELETE para o servidor
-        const response = await fetch(endpoint, {
-            method: 'DELETE',
-            // Não é necessário o header 'Content-Type' já que não estamos enviando corpo com dados
-        });
-
-        // Verifica se a resposta foi bem-sucedida
-        if (!response.ok) {
-            throw new Error('Erro ao tentar deletar o recurso');
-        }
-
-        // Parseia a resposta como JSON
-        const result = await response.json();
-
-        // Verifica se a requisição foi bem-sucedida
-        if (result.ok) {
-            console.log(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} deletado com sucesso!`);
-            console.log(result.message);
-        } else {
-            console.error(`Erro ao deletar o ${tipo}: ${result.message}`);
-            if (result.details) {
-                console.error("Detalhes:", result.details);
-            }
-        }
-    } catch (error) {
-        console.error("Erro:", error);
+//Deleta registros do banco de dados
+//Gostaria de ter usado o método DELETE, mas infelizmente meu apache só aceita GET, POST e OPTIONS
+async function deleteDB(tipo, deck_id) {
+    // Valida se o tipo fornecido é válido
+    const tiposPermitidos = ['deck', 'hand'];
+    if (!tiposPermitidos.includes(tipo)) {
+        throw new Error("Tipo inválido. Deve ser 'deck' ou 'hand'.");
     }
+
+    // Verifica se o ID foi fornecido
+    if (!deck_id) {
+        throw new Error("O ID é necessário para deletar o recurso.");
+    }
+
+    // Define o endpoint com base no tipo e no ID
+    const endpoint = `back/${tipo}/delete.php?deck_id=${deck_id}`;
+
+    // Envia uma requisição DELETE para o servidor
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        // Não é necessário o header 'Content-Type' já que não estamos enviando corpo com dados
+    });
+
+    // Parseia a resposta como JSON
+    const result = await response.json();
+
+    // Verifica se a requisição foi bem-sucedida
+    if (!result.ok) {
+        console.log(result);
+    }
+    return result.ok;
 }
 
+/*
+Cria uma tabela de acordo com uma lista de objetos
+
+objectsList = lista de objetos
+containerId = id do elemento onde a tabela deve ser inserida
+actionsList = lista de objetos contendo texto, classe e função de callback. É necessário para inserir botões na tabela
+*/
 function createTableFromObjects(objectsList, containerId, actionsList = []) {
     // Ensure there's data to create the table
     if (!objectsList || objectsList.length === 0) {
@@ -346,4 +432,47 @@ function createTableFromObjects(objectsList, containerId, actionsList = []) {
 
     // Append the table to the container
     container.appendChild(table);
+}
+
+//Adiciona uma mensagem na fila de mensagens a serem mostradas (ver linha 15 e 16)
+function showMessage(message, isSuccess) {
+    // Adiciona a mensagem à fila
+    messageQueue.push({ message, isSuccess });
+
+    // Se não houver nenhuma mensagem sendo exibida, processa a fila
+    if (!isMessageVisible) {
+        processMessageQueue();
+    }
+}
+
+//Processa mensagens da fila de mensagens
+function processMessageQueue() {
+    if (messageQueue.length === 0) {
+        isMessageVisible = false; // Não há mais mensagens na fila
+        return;
+    }
+
+    isMessageVisible = true; // Uma mensagem está sendo exibida
+    const { message, isSuccess } = messageQueue.shift(); // Retira a próxima mensagem da fila
+
+    // Cria o container
+    const container = document.createElement('div');
+    container.className = 'message-container'; // Usa uma classe para estilos
+    container.textContent = message;
+
+    // Define a cor do fundo com base no sucesso ou erro
+    container.style.backgroundColor = isSuccess ? '#4caf50' : '#f44336'; // Verde para sucesso, vermelho para erro
+    container.style.opacity = '1'; // Inicia o fade-in
+
+    // Adiciona o container ao body
+    document.body.appendChild(container);
+
+    // Esconde a mensagem após 1 segundo
+    setTimeout(() => {
+        container.style.opacity = '0'; // Inicia o fade-out
+        setTimeout(() => {
+            document.body.removeChild(container); // Remove o elemento após o fade-out
+            processMessageQueue(); // Processa a próxima mensagem na fila
+        }, 1000); // Aguarda o término do fade-out
+    }, 1000); // Mantém a mensagem visível por 1 segundo
 }

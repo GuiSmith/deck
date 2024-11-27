@@ -1,7 +1,7 @@
 <?php
 
 // Pegando arquivo que contém conexão com banco de dados
-require "conn.php";
+require "../conn.php";
 
 // Configuração da resposta
 $response = [
@@ -11,7 +11,7 @@ $response = [
 ];
 
 // Pegando parâmetro 'id' da URL
-$deck_id = isset($_GET['id']) ? $_GET['id'] : null;
+$deck_id = isset($_GET['deck_id']) ? $_GET['deck_id'] : null;
 
 // Verificando se o 'id' foi fornecido
 if (!$deck_id) {
