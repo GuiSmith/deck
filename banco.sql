@@ -1,10 +1,10 @@
-DROP DATABASE IF EXISTS CardDecks;
+DROP DATABASE IF EXISTS deck;
 
 -- Criar o banco de dados
-CREATE DATABASE CardDecks;
+CREATE DATABASE deck;
 
 -- Selecionar o banco de dados recém-criado
-USE CardDecks;
+USE deck;
 
 -- Criar a tabela 'decks' com a coluna 'name' adicionada
 CREATE TABLE decks (
@@ -99,3 +99,9 @@ SET remaining = (
     WHERE cards.deck_id = decks.deck_id AND cards.on_hand = 0
 );
 */
+
+CREATE TABLE IF NOT EXISTS log(
+    idlog INT PRIMARY KEY AUTO_INCREMENT,
+    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    numeroregistros INT
+);

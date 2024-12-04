@@ -3,7 +3,7 @@
 // Tentativa de conexão ao banco de dados
 try {
     // Estabelecendo a conexão com o banco
-    $dbConnection = new PDO('mysql:host=localhost;dbname=CardDecks;charset=utf8', 'vicc', '');
+    $dbConnection = new PDO('mysql:host=localhost;dbname=deck;charset=utf8', 'vicc', '');
 } catch (Exception $error) {
     // Tratamento de erro de conexão
     die('

@@ -12,6 +12,7 @@ var deckNameElement = document.getElementById('deckName'); //Input para nome do 
 const deckContainer = document.getElementById('deckContainer'); //Elemento container dos baralhos
 const deckTableContainer = document.getElementById('deckTableContainer'); //Elemento container da tabela de baralhos
 const deckIdContainer = document.getElementById('deckIdContainer'); //Elemento container do ID do baralho
+const handContainer = document.getElementById('handContainer');
 const messageQueue = []; // Fila de mensagens
 let isMessageVisible = false; // Indica se uma mensagem está sendo exibida
 
@@ -20,10 +21,23 @@ document.addEventListener('DOMContentLoaded', () => {
     showMessage('Página carregada!', true);
 });
 
+//Lista logs
+async function listarLogs(){
+    let logs = await listDB('log');
+    if (logs.length > 0) {
+        resetarSite();
+        createTableFromObjects(logs,'deckTableContainer');
+        showMessage('Logs listados', true);
+    } else {
+        showMessage('Nenhum log cadastrado', false);
+    }
+}
+
 //Reseta os dados de baralho para simular o recarregamento de uma página
 function resetarSite(){
     deckContainer.innerHTML = '';
     deckIdContainer.innerHTML = '';
+    handContainer.innerHTML = '';
     deckNameElement.value = '';
     savedDB = false;
     deck = [];
@@ -76,7 +90,6 @@ function comprarCincoCartas() {
 
 //Exibe cartas compradas do baralho
 function exibirCartasNaMão() {
-    const handContainer = document.getElementById('handContainer');
     handContainer.innerHTML = '';
     hand.forEach(carta => {
         const img = document.createElement('img');
@@ -94,6 +107,11 @@ async function embaralharCartas() {
         const deckResponse = await axios.get(`${apiDeckUrl}/${deckData.deck_id}/draw/?count=${deck.length > 0 ? deck.length : 52}`);
         //console.log(deckResponse);
         deck = deckResponse.data.cards;
+        if(await createDB({numeroregistros: deck.length},'log')){
+            showMessage('Logs inseridos', true);
+        }else{
+            showMessage('Logs não inseridos', false);
+        }
         showMessage('Cartas embaralhadas', true);
         exibirCartasNoBaralho();
     }
@@ -214,11 +232,12 @@ D = DELETE = deleteDB
 //Cria registro no banco de dados
 async function createDB(data, type) {
     // Define allowed resource types in an array
-    const allowedTypes = ['card', 'deck'];
+    const allowedTypes = ['card', 'deck', 'log'];
 
     // Validate if the type is included in the allowedTypes array
     if (!allowedTypes.includes(type)) {
-        throw new Error("Tipo invalido, deve ser um destes: 'card', 'deck'.");
+        console.log(`Tipo invalido, deve ser um destes: ${allowedTypes.join(',')}. ${type} foi informado`);
+        return false;
     }
 
     // Set the appropriate endpoint based on the type
@@ -281,15 +300,16 @@ Se o tipo for CARD (cartas), é necessário informar um deck_id, para saber de q
 */
 async function listDB(tipo, deck_id = null) {
     // Valida se o tipo fornecido é válido
-    const tiposPermitidos = ['deck', 'card'];
+    const tiposPermitidos = ['deck', 'card', 'log'];
     if (!tiposPermitidos.includes(tipo)) {
-        throw new Error("Tipo inválido. Deve ser 'deck' ou 'hand'.");
+        console.error(`Tipo inválido, deve ser dos tipos ${tiposPermitidos.join(',')}. ${tipo} informado`);
+        return [];
     }
 
     // Define o endpoint com base no tipo
     let endpoint = `back/${tipo}/list.php`;
 
-    if (deck_id) endpoint += `?deck_id=${deck_id}`;
+    if (deck_id && ['deck','card'].includes(tipo)) endpoint += `?deck_id=${deck_id}`;
 
     // Envia uma requisição GET para o servidor para listar o recurso
     const response = await fetch(endpoint, {
